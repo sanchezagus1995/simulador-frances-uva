@@ -42,9 +42,6 @@ function setValue(id, value) {
 }
 
 // ===== Configuración de gastos =====
-// "restar" = el monto ingresado es el máximo / neto final
-// "sumar"  = el monto ingresado es un monto base al que se le agregan cargos
-
 const GASTOS_ENTIDAD = {
   12: { sumar: 13.31, restar: 11.75 },
   18: { sumar: 18.15, restar: 15.36 },
@@ -64,21 +61,7 @@ function getDefaultPctByMode(mode, plazo) {
   return getPctEntidad(plazo, mode);
 }
 
-/**
- * Reglas:
- * - modo "restar":
- *   el monto ingresado es el máximo / neto final
- *   => se calculan hacia atrás los componentes:
- *      neto final = montoBase
- *      gasto entidad = porcentaje sobre monto final financiado
- *      gasto infinito = 9.09% sobre monto final financiado
- *      monto financiado = neto / (1 - pctEntidad - pctInfinito)
- *
- * - modo "sumar":
- *   el monto ingresado es un monto base
- *   => primero se suma 10% de Infinito
- *   => luego se suman gastos de entidad sobre ese subtotal
- */
+// ===== Lógica de montos =====
 function calcularMontosUVA(montoBase, plazo, modo) {
   const pctEntidad = getPctEntidad(plazo, modo);
 
@@ -89,16 +72,14 @@ function calcularMontosUVA(montoBase, plazo, modo) {
   if (modo === "restar") {
     const pctEntidadDec = pctEntidad / 100;
     const pctInfinitoDec = GASTO_INFINITO_RESTAR / 100;
-    const pctTotal = pctEntidadDec + pctInfinitoDec;
 
-    if (pctTotal >= 1) {
-      throw new Error("La suma de porcentajes no puede ser mayor o igual al 100%.");
+    const gastoEntidadArs = montoBase * pctEntidadDec;
+    const gastoInfinitoArs = montoBase * pctInfinitoDec;
+    const netoCliente = montoBase - gastoEntidadArs - gastoInfinitoArs;
+
+    if (netoCliente <= 0) {
+      throw new Error("El neto final debe ser mayor a cero.");
     }
-
-    const netoCliente = montoBase;
-    const montoFinanciado = netoCliente / (1 - pctTotal);
-    const gastoEntidadArs = montoFinanciado * pctEntidadDec;
-    const gastoInfinitoArs = montoFinanciado * pctInfinitoDec;
 
     return {
       montoBase,
@@ -107,9 +88,9 @@ function calcularMontosUVA(montoBase, plazo, modo) {
       porcentajeEntidad: pctEntidad,
       porcentajeInfinito: GASTO_INFINITO_RESTAR,
 
-      montoIntermedio: montoFinanciado,
-      montoFinal: montoFinanciado, // lo que realmente se financia
-      montoFinanciado,
+      montoIntermedio: montoBase,
+      montoFinal: netoCliente,
+      montoFinanciado: montoBase,
 
       gastoEntidadArs,
       gastoInfinitoArs,
@@ -207,7 +188,7 @@ async function fetchUVA() {
   };
 }
 
-// ===== Cálculo =====
+// ===== Cálculo de cuotas =====
 function buildSchedule({ montoArs, plazo, tnaPct, inflacionPct, uvaHoy }) {
   const i = monthlyRateFromTNA(tnaPct);
   const infl = Number(inflacionPct) / 100;
@@ -294,19 +275,19 @@ function renderMontoResumen(data) {
   setText("porcentajeGastosInfinito", `${fmtNum(porcentajeInfinito, 2)}%`);
   setText("gastosInfinitoArs", fmtARS(gastoInfinitoArs));
   setText("montoIntermedioCalculado", fmtARS(montoIntermedio));
+  setText("netoClienteArs", fmtARS(netoCliente));
 
   if (modo === "sumar") {
     setText("labelMontoFinal", "Monto total financiado");
     setText("labelMontoIngresado", "Monto base");
     setText("labelMontoIntermedio", "Monto + Infinito");
+    setText("montoFinalCalculado", fmtARS(montoFinal));
   } else {
-    setText("labelMontoFinal", "Monto total financiado");
-    setText("labelMontoIngresado", "Neto a recibir");
-    setText("labelMontoIntermedio", "Monto financiado antes de mostrar neto");
-    setText("netoClienteArs", fmtARS(netoCliente));
+    setText("labelMontoFinal", "Neto a recibir");
+    setText("labelMontoIngresado", "Monto base");
+    setText("labelMontoIntermedio", "Monto usado para calcular cuotas");
+    setText("montoFinalCalculado", fmtARS(montoFinal));
   }
-
-  setText("montoFinalCalculado", fmtARS(montoFinal));
 }
 
 function buildSummary({
@@ -321,6 +302,7 @@ function buildSummary({
   montoFinal,
   netoCliente,
   netoInfinito,
+  montoFinanciado,
   tnaPct,
   inflacionPct,
   uva,
@@ -331,7 +313,7 @@ function buildSummary({
   const modoTxt =
     modo === "sumar"
       ? "Monto específico + sumar gastos"
-      : "Monto máximo / neto final";
+      : "Monto base - restar gastos";
 
   const lineas = [
     "Simulador UVA",
@@ -346,9 +328,10 @@ function buildSummary({
   if (modo === "sumar") {
     lineas.push(`Monto + Infinito: ${fmtARS(montoIntermedio)}`);
     lineas.push(`Monto total financiado: ${fmtARS(montoFinal)}`);
+    lineas.push(`Neto cliente: ${fmtARS(netoCliente)}`);
   } else {
-    lineas.push(`Monto total financiado: ${fmtARS(montoFinal)}`);
-    lineas.push(`Neto a recibir: ${fmtARS(netoCliente)}`);
+    lineas.push(`Monto usado para calcular cuotas: ${fmtARS(montoFinanciado)}`);
+    lineas.push(`Neto a recibir: ${fmtARS(montoFinal)}`);
   }
 
   lineas.push(`Neto Infinito: ${fmtARS(netoInfinito)}`);
@@ -361,7 +344,7 @@ function buildSummary({
   return lineas.join("\n");
 }
 
-// ===== Sincronización de UI =====
+// ===== Sincronización UI =====
 function syncPorcentajeSegunSeleccion() {
   const plazo = Number($("plazo")?.value || 0);
   const modo = $("modoGastos")?.value || "sumar";
@@ -386,11 +369,10 @@ async function calcular() {
 
     const gastos = calcularMontosUVA(montoBase, plazo, modoGastos);
 
-    setValue("porcentajeGastos", fmtNum(gastos.porcentajeEntidad, 2).replace(",", "."));
-
-    if (gastos.montoFinal <= 0) {
-      throw new Error("El monto final calculado debe ser mayor a cero.");
-    }
+    setValue(
+      "porcentajeGastos",
+      fmtNum(gastos.porcentajeEntidad, 2).replace(",", ".")
+    );
 
     const uva = await fetchUVA();
 
@@ -400,7 +382,7 @@ async function calcular() {
     renderMontoResumen(gastos);
 
     const { capitalInicialUva, cuotaPuraUvaFija, rows } = buildSchedule({
-      montoArs: gastos.montoFinal,
+      montoArs: gastos.montoFinanciado,
       plazo,
       tnaPct,
       inflacionPct,
@@ -427,6 +409,7 @@ async function calcular() {
       montoFinal: gastos.montoFinal,
       netoCliente: gastos.netoCliente,
       netoInfinito: gastos.netoInfinito,
+      montoFinanciado: gastos.montoFinanciado,
       tnaPct,
       inflacionPct,
       uva,
@@ -460,6 +443,6 @@ $("btnCopiar")?.addEventListener("click", async () => {
 $("modoGastos")?.addEventListener("change", syncPorcentajeSegunSeleccion);
 $("plazo")?.addEventListener("change", syncPorcentajeSegunSeleccion);
 
-// Mensaje inicial
+// ===== Init =====
 syncPorcentajeSegunSeleccion();
 setStatus("Ingresá los datos y presioná Calcular.");
