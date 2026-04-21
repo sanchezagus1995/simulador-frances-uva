@@ -53,7 +53,7 @@
 
         <label>
           % gastos entidad
-          <input id="porcentajeGastos" type="number" inputmode="decimal" min="0" step="0.01" value="13.31">
+          <input id="porcentajeGastos" type="number" inputmode="decimal" min="0" step="0.01" value="13.31" readonly>
         </label>
       </div>
 
@@ -99,15 +99,15 @@
       <h3>Resumen de monto</h3>
       <div class="kpis">
         <div class="kpi">
-          <div class="kpi-label">Monto ingresado</div>
+          <div class="kpi-label" id="labelMontoIngresado">Monto ingresado</div>
           <div id="montoIngresado" class="kpi-value">—</div>
           <div class="muted small">valor escrito en el campo</div>
         </div>
 
         <div class="kpi">
-          <div class="kpi-label">% gastos aplicado</div>
+          <div class="kpi-label">% gastos entidad</div>
           <div id="porcentajeGastosAplicado" class="kpi-value">—</div>
-          <div class="muted small">editable</div>
+          <div class="muted small">según plazo y modo</div>
         </div>
 
         <div class="kpi">
@@ -117,9 +117,33 @@
         </div>
 
         <div class="kpi">
+          <div class="kpi-label">% gastos Infinito</div>
+          <div id="porcentajeGastosInfinito" class="kpi-value">—</div>
+          <div class="muted small">9,09% o 10%</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">Gastos Infinito</div>
+          <div id="gastosInfinitoArs" class="kpi-value">—</div>
+          <div class="muted small">importe calculado</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label" id="labelMontoIntermedio">Monto intermedio</div>
+          <div id="montoIntermedioCalculado" class="kpi-value">—</div>
+          <div class="muted small">paso previo al resultado final</div>
+        </div>
+
+        <div class="kpi">
           <div class="kpi-label" id="labelMontoFinal">Monto final</div>
           <div id="montoFinalCalculado" class="kpi-value">—</div>
           <div class="muted small">monto usado para calcular cuotas</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">Neto cliente</div>
+          <div id="netoClienteArs" class="kpi-value">—</div>
+          <div class="muted small">monto que recibe efectivamente</div>
         </div>
       </div>
 
