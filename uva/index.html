@@ -9,13 +9,12 @@
 </head>
 <body>
   <main class="wrap">
-     
     <div class="row">
       <button onclick="history.back()" class="ghost">
         ← Volver al menú
       </button>
     </div>
-    
+
     <h1>Simulador UVA</h1>
     <p class="muted">
       Calcula cuota <b>UVA</b>. Opcional: proyecta cuotas en pesos con inflación mensual estimada.
@@ -47,7 +46,7 @@
           Tratamiento de gastos
           <select id="modoGastos">
             <option value="sumar" selected>Sumar gastos al monto</option>
-            <option value="restar">El monto representa el máximo final</option>
+            <option value="restar">Restar gastos al monto</option>
           </select>
         </label>
 
@@ -99,9 +98,9 @@
       <h3>Resumen de monto</h3>
       <div class="kpis">
         <div class="kpi">
-          <div class="kpi-label" id="labelMontoIngresado">Monto ingresado</div>
+          <div class="kpi-label" id="labelMontoIngresado">Monto base</div>
           <div id="montoIngresado" class="kpi-value">—</div>
-          <div class="muted small">valor escrito en el campo</div>
+          <div class="muted small">valor ingresado por el usuario</div>
         </div>
 
         <div class="kpi">
@@ -129,15 +128,9 @@
         </div>
 
         <div class="kpi">
-          <div class="kpi-label" id="labelMontoIntermedio">Monto intermedio</div>
-          <div id="montoIntermedioCalculado" class="kpi-value">—</div>
-          <div class="muted small">paso previo al resultado final</div>
-        </div>
-
-        <div class="kpi">
-          <div class="kpi-label" id="labelMontoFinal">Monto final</div>
+          <div class="kpi-label" id="labelMontoFinal">Resultado final</div>
           <div id="montoFinalCalculado" class="kpi-value">—</div>
-          <div class="muted small">monto usado para calcular cuotas</div>
+          <div class="muted small">resultado final según el modo</div>
         </div>
 
         <div class="kpi">
@@ -172,7 +165,7 @@
   </main>
 
   <script src="../shared/bcra.js"></script>
-  <script src="./simulator.js"></script>
+  <script src="./simulador.js"></script>
 
   <script>
     renderBcraBlock("bcra-container", {
