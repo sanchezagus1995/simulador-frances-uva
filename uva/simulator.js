@@ -37,8 +37,8 @@ function setText(id, value) {
 
 // ===== Gastos entidad =====
 function getDefaultPctByMode(mode) {
-  if (mode === "restar") return 8.47;
-  return 9.25; // sumar
+  if (mode === "restar") return 11.75;
+  return 13.31; // sumar
 }
 
 function calcularMontoConGastos(montoBase, modo, porcentaje) {
