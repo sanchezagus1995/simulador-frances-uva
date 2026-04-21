@@ -291,18 +291,11 @@ function renderMontoResumen(data) {
 }
 
 function buildSummary({
-  montoBase,
   plazo,
-  modo,
-  porcentajeEntidad,
-  porcentajeInfinito,
   gastoEntidadArs,
   gastoInfinitoArs,
-  montoIntermedio,
-  montoFinal,
-  netoCliente,
-  netoInfinito,
   montoFinanciado,
+  netoCliente,
   tnaPct,
   inflacionPct,
   uva,
@@ -310,36 +303,20 @@ function buildSummary({
   cuotaPuraUvaFija,
   totalCuotaArs1,
 }) {
-  const modoTxt =
-    modo === "sumar"
-      ? "Monto específico + sumar gastos"
-      : "Monto base - restar gastos";
-
   const lineas = [
     "Simulador UVA",
     `UVA (${uva.fecha}): $${fmtNum(uva.valor, 2)}`,
-    `Modo: ${modoTxt}`,
     `Plazo: ${plazo} meses`,
-    `Monto ingresado: ${fmtARS(montoBase)}`,
-    `Gastos Infinito (${fmtNum(porcentajeInfinito, 2)}%): ${fmtARS(gastoInfinitoArs)}`,
-    `Gastos entidad (${fmtNum(porcentajeEntidad, 2)}%): ${fmtARS(gastoEntidadArs)}`,
+    `Gastos Infinito: ${fmtARS(gastoInfinitoArs)}`,
+    `Gastos entidad: ${fmtARS(gastoEntidadArs)}`,
+    `Monto total financiado: ${fmtARS(montoFinanciado)}`,
+    `Neto cliente: ${fmtARS(netoCliente)}`,
+    `TNA: ${fmtNum(tnaPct, 2)}%`,
+    `Inflación supuesta: ${fmtNum(inflacionPct, 2)}% mensual`,
+    `Capital inicial (UVA): ${fmtNum(capitalInicialUva, 4)}`,
+    `Cuota pura fija (UVA): ${fmtNum(cuotaPuraUvaFija, 4)}`,
+    `1ra cuota total (ARS): ${fmtARS(totalCuotaArs1)}`,
   ];
-
-  if (modo === "sumar") {
-    lineas.push(`Monto + Infinito: ${fmtARS(montoIntermedio)}`);
-    lineas.push(`Monto total financiado: ${fmtARS(montoFinal)}`);
-    lineas.push(`Neto cliente: ${fmtARS(netoCliente)}`);
-  } else {
-    lineas.push(`Monto usado para calcular cuotas: ${fmtARS(montoFinanciado)}`);
-    lineas.push(`Neto a recibir: ${fmtARS(montoFinal)}`);
-  }
-
-  lineas.push(`Neto Infinito: ${fmtARS(netoInfinito)}`);
-  lineas.push(`TNA: ${fmtNum(tnaPct, 2)}%`);
-  lineas.push(`Inflación supuesta: ${fmtNum(inflacionPct, 2)}% mensual`);
-  lineas.push(`Capital inicial (UVA): ${fmtNum(capitalInicialUva, 4)}`);
-  lineas.push(`Cuota pura fija (UVA): ${fmtNum(cuotaPuraUvaFija, 4)}`);
-  lineas.push(`1ra cuota total (ARS): ${fmtARS(totalCuotaArs1)}`);
 
   return lineas.join("\n");
 }
