@@ -133,59 +133,100 @@ function calcularMontosUVA(montoBase, plazo, modo) {
 }
 
 // ===== BCRA UVA =====
+async function fetchJsonSafe(url) {
+  const resp = await fetch(url, { cache: "no-store" });
+
+  if (!resp.ok) {
+    throw new Error(`HTTP ${resp.status}`);
+  }
+
+  const text = await resp.text();
+
+  if (!text || !text.trim()) {
+    throw new Error("Respuesta vacía");
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Respuesta inválida:", text);
+    throw new Error("JSON inválido");
+  }
+}
+
+// retry automático
+async function fetchWithRetry(url, retries = 2, delay = 500) {
+  try {
+    return await fetchJsonSafe(url);
+  } catch (err) {
+    if (retries > 0) {
+      await new Promise((r) => setTimeout(r, delay));
+      return fetchWithRetry(url, retries - 1, delay);
+    }
+    throw err;
+  }
+}
+
 async function fetchUVA() {
-  const listUrl =
-    "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias?Limit=10000&Offset=0";
+  try {
+    const listUrl =
+      "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias?Limit=10000&Offset=0";
 
-  const listResp = await fetch(listUrl);
-  const list = await listResp.json();
-  const results = list.results || [];
+    const list = await fetchWithRetry(listUrl);
+    const results = list.results || [];
 
-  const uvaVar = results.find((v) => {
-    const d = (v.descripcion || "").toLowerCase().trim();
-    return (
-      d === "unidad de valor adquisitivo (uva)" ||
-      d === "uva" ||
-      d.includes("unidad de valor adquisitivo")
+    const uvaVar = results.find((v) => {
+      const d = (v.descripcion || "").toLowerCase();
+      return d.includes("uva");
+    });
+
+    if (!uvaVar) throw new Error("UVA no encontrada");
+
+    const detUrl = `https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/${uvaVar.idVariable}`;
+
+    const det = await fetchWithRetry(detUrl);
+
+    const serie = det.results?.[0]?.detalle || [];
+
+    if (!serie.length) {
+      throw new Error("Serie vacía");
+    }
+
+    const hoy = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "America/Argentina/Buenos_Aires",
+    }).format(new Date());
+
+    const serieValida = serie.filter((d) => d.fecha <= hoy);
+
+    const dato = serieValida.reduce((a, b) =>
+      a.fecha > b.fecha ? a : b
     );
-  });
 
-  if (!uvaVar) {
-    throw new Error("No encontré la variable UVA en el listado del BCRA.");
+    const resultado = {
+      valor: Number(dato.valor),
+      fecha: dato.fecha,
+    };
+
+    // ✅ guardamos en cache
+    localStorage.setItem("uva_cache", JSON.stringify(resultado));
+
+    return resultado;
+
+  } catch (error) {
+    console.warn("Fallo API BCRA, intento usar cache...", error);
+
+    const cache = localStorage.getItem("uva_cache");
+
+    if (cache) {
+      const parsed = JSON.parse(cache);
+
+      setStatus("⚠️ Usando última UVA guardada (sin conexión BCRA)");
+
+      return parsed;
+    }
+
+    throw new Error("No se pudo obtener UVA ni usar cache");
   }
-
-  const id = uvaVar.idVariable;
-  const detUrl = `https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/${id}`;
-
-  const detResp = await fetch(detUrl);
-  const det = await detResp.json();
-
-  const serie = det.results?.[0]?.detalle || [];
-
-  if (!serie.length) {
-    throw new Error("No se encontró la serie de UVA.");
-  }
-
-  const hoy = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).format(new Date());
-
-  const seriePasadaOVigente = serie.filter((d) => d.fecha <= hoy);
-
-  if (!seriePasadaOVigente.length) {
-    throw new Error("No encontré un valor de UVA vigente para hoy o una fecha anterior.");
-  }
-
-  const datoVigente = seriePasadaOVigente.reduce((a, b) =>
-    a.fecha > b.fecha ? a : b
-  );
-
-  return {
-    valor: Number(datoVigente.valor),
-    fecha: datoVigente.fecha,
-    idVariable: id,
-    descripcion: uvaVar.descripcion,
-  };
 }
 
 // ===== Cálculo de cuotas =====
