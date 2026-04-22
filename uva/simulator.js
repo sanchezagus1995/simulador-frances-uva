@@ -155,6 +155,27 @@ async function fetchJsonSafe(url) {
 }
 
 // retry automático
+async function fetchJsonSafe(url) {
+  const resp = await fetch(url, { cache: "no-store" });
+
+  if (!resp.ok) {
+    throw new Error(`HTTP ${resp.status}`);
+  }
+
+  const text = await resp.text();
+
+  if (!text || !text.trim()) {
+    throw new Error("Respuesta vacía");
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Respuesta inválida:", text);
+    throw new Error("JSON inválido");
+  }
+}
+
 async function fetchWithRetry(url, retries = 2, delay = 500) {
   try {
     return await fetchJsonSafe(url);
@@ -167,6 +188,37 @@ async function fetchWithRetry(url, retries = 2, delay = 500) {
   }
 }
 
+function pedirUvaManual() {
+  const valorIngresado = prompt(
+    "No se pudo obtener la UVA desde BCRA.\n\nIngresá manualmente el valor UVA:"
+  );
+
+  if (valorIngresado === null) {
+    throw new Error("No se pudo obtener la UVA y no se ingresó un valor manual.");
+  }
+
+  const normalizado = valorIngresado.replace(",", ".").trim();
+  const valor = Number(normalizado);
+
+  if (!Number.isFinite(valor) || valor <= 0) {
+    throw new Error("El valor manual de UVA no es válido.");
+  }
+
+  const hoy = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(new Date());
+
+  const resultado = {
+    valor,
+    fecha: `${hoy} (manual)`,
+    manual: true,
+  };
+
+  localStorage.setItem("uva_cache", JSON.stringify(resultado));
+
+  return resultado;
+}
+
 async function fetchUVA() {
   try {
     const listUrl =
@@ -176,59 +228,65 @@ async function fetchUVA() {
     const results = list.results || [];
 
     const uvaVar = results.find((v) => {
-      const d = (v.descripcion || "").toLowerCase();
-      return d.includes("uva");
+      const d = (v.descripcion || "").toLowerCase().trim();
+      return (
+        d === "unidad de valor adquisitivo (uva)" ||
+        d === "uva" ||
+        d.includes("unidad de valor adquisitivo")
+      );
     });
 
-    if (!uvaVar) throw new Error("UVA no encontrada");
+    if (!uvaVar) {
+      throw new Error("No encontré la variable UVA en el listado del BCRA.");
+    }
 
     const detUrl = `https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/${uvaVar.idVariable}`;
-
     const det = await fetchWithRetry(detUrl);
 
     const serie = det.results?.[0]?.detalle || [];
 
     if (!serie.length) {
-      throw new Error("Serie vacía");
+      throw new Error("No se encontró la serie de UVA.");
     }
 
     const hoy = new Intl.DateTimeFormat("sv-SE", {
       timeZone: "America/Argentina/Buenos_Aires",
     }).format(new Date());
 
-    const serieValida = serie.filter((d) => d.fecha <= hoy);
+    const seriePasadaOVigente = serie.filter((d) => d.fecha <= hoy);
 
-    const dato = serieValida.reduce((a, b) =>
+    if (!seriePasadaOVigente.length) {
+      throw new Error("No encontré un valor de UVA vigente para hoy o una fecha anterior.");
+    }
+
+    const datoVigente = seriePasadaOVigente.reduce((a, b) =>
       a.fecha > b.fecha ? a : b
     );
 
     const resultado = {
-      valor: Number(dato.valor),
-      fecha: dato.fecha,
+      valor: Number(datoVigente.valor),
+      fecha: datoVigente.fecha,
+      manual: false,
     };
 
-    // ✅ guardamos en cache
     localStorage.setItem("uva_cache", JSON.stringify(resultado));
 
     return resultado;
-
   } catch (error) {
-    console.warn("Fallo API BCRA, intento usar cache...", error);
+    console.warn("Fallo API BCRA, intento usar cache o ingreso manual...", error);
 
     const cache = localStorage.getItem("uva_cache");
 
     if (cache) {
       const parsed = JSON.parse(cache);
-
-      setStatus("⚠️ Usando última UVA guardada (sin conexión BCRA)");
-
+      setStatus("⚠️ BCRA no respondió. Usando última UVA guardada.");
       return parsed;
     }
 
-    throw new Error("No se pudo obtener UVA ni usar cache");
+    setStatus("⚠️ BCRA no respondió. Ingresá la UVA manualmente.");
+    return pedirUvaManual();
   }
 }
-
 // ===== Cálculo de cuotas =====
 function buildSchedule({ montoArs, plazo, tnaPct, inflacionPct, uvaHoy }) {
   const i = monthlyRateFromTNA(tnaPct);
