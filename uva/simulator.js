@@ -1,4 +1,4 @@
-// simulador.js
+// simulador.jss
 
 // ===== Helpers =====
 const fmtARS = (n) =>
@@ -58,23 +58,37 @@ function getPctEntidad(plazo, modo) {
 }
 
 function getDefaultPctByMode(mode, plazo) {
-  return getPctEntidad(plazo, mode);
+  if (!incluyeGastosEntidad(mode)) return 0;
+
+  const operacion = getOperacionGastos(mode);
+  return getPctEntidad(plazo, operacion);
+}
+function incluyeGastosEntidad(modo) {
+  return modo === "sumar" || modo === "restar";
 }
 
+function getOperacionGastos(modo) {
+  if (modo.includes("restar")) return "restar";
+  return "sumar";
+}
 // ===== Lógica de montos =====
 function calcularMontosUVA(montoBase, plazo, modo) {
-  const pctEntidad = getPctEntidad(plazo, modo);
+  const incluyeEntidad = incluyeGastosEntidad(modo);
+  const operacion = getOperacionGastos(modo);
 
-  if (!pctEntidad) {
+  const pctEntidad = incluyeEntidad ? getPctEntidad(plazo, operacion) : 0;
+
+  if (incluyeEntidad && !pctEntidad) {
     throw new Error("No hay configuración de gastos para ese plazo.");
   }
 
-  if (modo === "restar") {
+  if (operacion === "restar") {
     const pctEntidadDec = pctEntidad / 100;
     const pctInfinitoDec = GASTO_INFINITO_RESTAR / 100;
 
-    const gastoEntidadArs = montoBase * pctEntidadDec;
+    const gastoEntidadArs = incluyeEntidad ? montoBase * pctEntidadDec : 0;
     const gastoInfinitoArs = montoBase * pctInfinitoDec;
+
     const netoCliente = montoBase - gastoEntidadArs - gastoInfinitoArs;
 
     if (netoCliente <= 0) {
@@ -85,6 +99,8 @@ function calcularMontosUVA(montoBase, plazo, modo) {
       montoBase,
       plazo,
       modo,
+      operacion,
+      incluyeEntidad,
       porcentajeEntidad: pctEntidad,
       porcentajeInfinito: GASTO_INFINITO_RESTAR,
 
@@ -100,20 +116,22 @@ function calcularMontosUVA(montoBase, plazo, modo) {
     };
   }
 
-  if (modo === "sumar") {
+  if (operacion === "sumar") {
     const pctInfinitoDec = GASTO_INFINITO_SUMAR / 100;
     const pctEntidadDec = pctEntidad / 100;
 
     const montoConInfinito = montoBase * (1 + pctInfinitoDec);
     const gastoInfinitoArs = montoConInfinito - montoBase;
 
-    const gastoEntidadArs = montoConInfinito * pctEntidadDec;
+    const gastoEntidadArs = incluyeEntidad ? montoConInfinito * pctEntidadDec : 0;
     const montoFinanciado = montoConInfinito + gastoEntidadArs;
 
     return {
       montoBase,
       plazo,
       modo,
+      operacion,
+      incluyeEntidad,
       porcentajeEntidad: pctEntidad,
       porcentajeInfinito: GASTO_INFINITO_SUMAR,
 
@@ -131,7 +149,6 @@ function calcularMontosUVA(montoBase, plazo, modo) {
 
   throw new Error("Modo de gastos inválido.");
 }
-
 // ===== BCRA UVA =====
 async function fetchJsonSafe(url) {
   const resp = await fetch(url, { cache: "no-store" });
@@ -298,7 +315,7 @@ function buildSchedule({ montoArs, plazo, tnaPct, inflacionPct, uvaHoy }) {
   let saldo = capitalInicialUva;
   const rows = [];
 
-  for (let cuota = 1; cuota <= Math.min(plazo, 12); cuota++) {
+  for (let cuota = 1; cuota <= plazo; cuota++) {
     const interesUva = saldo * i;
     const capitalUva = cuotaPuraUvaFija - interesUva;
     const saldoNuevo = Math.max(0, saldo - capitalUva);
@@ -331,7 +348,52 @@ function buildSchedule({ montoArs, plazo, tnaPct, inflacionPct, uvaHoy }) {
     rows,
   };
 }
+// ===== comparacion =====
+function buildComparacionFrances({
+  rowsUva,
+  montoFinanciado,
+  plazo,
+  tnaPct
+}) {
+  const i = monthlyRateFromTNA(tnaPct);
+  const cuotaPuraFrances = frenchPayment(montoFinanciado, i, plazo);
 
+  let saldo = montoFinanciado;
+  let mesCruce = null;
+
+  const filas = rowsUva.map((r) => {
+    const interes = saldo * i;
+    const capital = cuotaPuraFrances - interes;
+    const iva = interes * 0.21;
+    const cuotaTotalFrances = cuotaPuraFrances + iva;
+
+    const diferencia = r.totalCuotaArs - cuotaTotalFrances;
+
+    if (mesCruce === null && r.totalCuotaArs >= cuotaTotalFrances) {
+      mesCruce = r.cuota;
+    }
+
+    saldo = Math.max(0, saldo - capital);
+
+    return {
+      mes: r.cuota,
+      cuotaUva: r.totalCuotaArs,
+      cuotaFrances: cuotaTotalFrances,
+      cuotaPuraFrances,
+      interesFrances: interes,
+      capitalFrances: capital,
+      ivaFrances: iva,
+      diferencia,
+    };
+  });
+
+  return {
+    cuotaFrances: filas[0]?.cuotaFrances || 0,
+    cuotaPuraFrances,
+    filas,
+    mesCruce,
+  };
+}
 // ===== Render =====
 function renderTable(rows) {
   const tbody = $("tabla");
@@ -376,7 +438,7 @@ function renderMontoResumen(data) {
   setText("montoIntermedioCalculado", fmtARS(montoIntermedio));
   setText("netoClienteArs", fmtARS(netoCliente));
 
-  if (modo === "sumar") {
+  if (data.operacion === "sumar") {
     setText("labelMontoFinal", "Monto total financiado");
     setText("labelMontoIngresado", "Monto base");
     setText("labelMontoIntermedio", "Monto + Infinito");
@@ -420,6 +482,50 @@ function buildSummary({
   return lineas.join("\n");
 }
 
+function renderComparacionFrances(data) {
+  const cont = $("resultadoComparacionFrances");
+  if (!cont) return;
+
+  const { filas, mesCruce, cuotaFrances } = data;
+
+  const mensaje = mesCruce
+    ? `La cuota UVA supera a la tradicional en el mes ${mesCruce}`
+    : `La cuota UVA no supera a la tradicional en el plazo`;
+
+  const filasHtml = filas
+    .map(
+      (f) => `
+      <tr>
+        <td>${f.mes}</td>
+        <td>${fmtARS(f.cuotaUva)}</td>
+        <td>${fmtARS(f.cuotaFrances)}</td>
+        <td>${fmtARS(f.diferencia)}</td>
+      </tr>
+    `
+    )
+    .join("");
+
+  cont.innerHTML = `
+    <h3>Comparación UVA vs Tradicional</h3>
+    <p><strong>${mensaje}</strong></p>
+    <p>Cuota pura tradicional: ${fmtARS(data.cuotaPuraFrances)}</p>
+    <p>1ra cuota tradicional: ${fmtARS(cuotaFrances)}</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Mes</th>
+          <th>UVA</th>
+          <th>Tradicional</th>
+          <th>Diferencia</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filasHtml}
+      </tbody>
+    </table>
+  `;
+}
 // ===== Sincronización UI =====
 function syncPorcentajeSegunSeleccion() {
   const plazo = Number($("plazo")?.value || 0);
@@ -472,7 +578,22 @@ async function calcular() {
     setText("cuotaArs1", primera ? fmtARS(primera.totalCuotaArs) : "—");
 
     renderTable(rows);
+const comparar = $("compararFrances")?.checked;
+const tnaTradicional = Number($("tnaTradicional")?.value || 0);
 
+if (comparar && tnaTradicional > 0) {
+  const comparacion = buildComparacionFrances({
+    rowsUva: rows,
+    montoFinanciado: gastos.montoFinanciado,
+    plazo,
+    tnaPct: tnaTradicional,
+  });
+
+  renderComparacionFrances(comparacion);
+} else {
+  const cont = $("resultadoComparacionFrances");
+  if (cont) cont.innerHTML = "";
+}
     window.__summary = buildSummary({
       montoBase: gastos.montoBase,
       plazo: gastos.plazo,
@@ -502,9 +623,19 @@ async function calcular() {
 }
 
 // ===== Eventos =====
+$("compararFrances")?.addEventListener("change", () => {
+  const activo = $("compararFrances").checked;
+  $("bloqueComparacionFrances").style.display = activo ? "block" : "none";
+
+  if (activo) {
+    calcular();
+  }
+});
+
 $("btnCalcular")?.addEventListener("click", calcular);
 
 $("btnCopiar")?.addEventListener("click", async () => {
+  
   const text = window.__summary || "Primero calculá para generar el resumen.";
 
   try {
@@ -521,4 +652,11 @@ $("plazo")?.addEventListener("change", syncPorcentajeSegunSeleccion);
 
 // ===== Init =====
 syncPorcentajeSegunSeleccion();
+
+// 👇 estado inicial del bloque comparación
+const activoInicial = $("compararFrances")?.checked;
+if ($("bloqueComparacionFrances")) {
+  $("bloqueComparacionFrances").style.display = activoInicial ? "block" : "none";
+}
+
 setStatus("Ingresá los datos y presioná Calcular.");
