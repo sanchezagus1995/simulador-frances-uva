@@ -86,11 +86,14 @@ function calcularMontosUVA(montoBase, plazo, modo) {
     const pctInfinitoDec = GASTO_INFINITO_RESTAR / 100;
 
     const gastoEntidadArs = montoBase * pctEntidadDec;
-    const gastoInfinitoArs = montoBase * pctInfinitoDec;
 
-    const netoCliente = incluyeEntidad
-      ? montoBase - gastoEntidadArs - gastoInfinitoArs
-      : montoBase - gastoInfinitoArs;
+const montoDespuesEntidad = incluyeEntidad
+  ? montoBase - gastoEntidadArs
+  : montoBase;
+
+const gastoInfinitoArs = montoDespuesEntidad * pctInfinitoDec;
+
+const netoCliente = montoDespuesEntidad - gastoInfinitoArs;
 
     if (netoCliente <= 0) {
       throw new Error("El neto final debe ser mayor a cero.");
@@ -105,7 +108,7 @@ function calcularMontosUVA(montoBase, plazo, modo) {
       porcentajeEntidad: pctEntidad,
       porcentajeInfinito: GASTO_INFINITO_RESTAR,
 
-      montoIntermedio: montoBase,
+      montoIntermedio: montoDespuesEntidad,
       montoFinal: netoCliente,
       montoFinanciado: montoBase,
 
