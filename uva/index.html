@@ -45,9 +45,11 @@
         <label>
           Tratamiento de gastos
           <select id="modoGastos">
-            <option value="sumar" selected>Sumar gastos al monto</option>
-            <option value="restar">Restar gastos al monto</option>
-          </select>
+  <option value="sumar" selected>Sumar gastos entidad + Infinito</option>
+  <option value="restar">Restar gastos entidad + Infinito</option>
+  <option value="sumar_sin_entidad">Sin gastos entidad - sumar Infinito</option>
+  <option value="restar_sin_entidad">Sin gastos entidad - restar Infinito</option>
+</select>
         </label>
 
         <label>
@@ -63,6 +65,32 @@
 
       <div id="status" class="status muted"></div>
     </section>
+<h3>Comparación con tasa tradicional</h3>
+
+<div class="card">
+
+  <div class="row" style="margin-bottom: 10px;">
+    <label style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="compararFrances">
+      Activar comparación
+    </label>
+  </div>
+
+  <div id="bloqueComparacionFrances" style="display:none;">
+
+    <div class="grid">
+      <label>
+        TNA tradicional (%)
+        <input id="tnaTradicional" type="number" step="0.01" placeholder="Ej: 75">
+      </label>
+    </div>
+
+    <div id="resultadoComparacionFrances" style="margin-top:15px;"></div>
+
+  </div>
+
+</div>
+
 
     <div id="bcra-container"></div>
 
@@ -140,7 +168,7 @@
         </div>
       </div>
 
-      <h3>Tabla (primeros 12 meses)</h3>
+      <h3>Tabla de cuotas</h3>
       <div class="table-wrap">
         <table>
           <thead>
@@ -157,6 +185,7 @@
           <tbody id="tabla"></tbody>
         </table>
       </div>
+      
     </section>
 
     <footer class="muted small">
