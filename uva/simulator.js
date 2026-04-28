@@ -41,6 +41,15 @@ function setValue(id, value) {
   if (el) el.value = value;
 }
 
+// ===== Helpers de gastos =====
+function incluyeGastosEntidad(modo) {
+  return modo === "sumar" || modo === "restar";
+}
+
+function getOperacionGastos(modo) {
+  if (modo.includes("restar")) return "restar";
+  return "sumar";
+}
 // ===== Configuración de gastos =====
 const GASTOS_ENTIDAD = {
   12: { sumar: 13.31, restar: 11.75 },
@@ -58,27 +67,17 @@ function getPctEntidad(plazo, modo) {
 }
 
 function getDefaultPctByMode(mode, plazo) {
-  if (!incluyeGastosEntidad(mode)) return 0;
-
   const operacion = getOperacionGastos(mode);
   return getPctEntidad(plazo, operacion);
-}
-function incluyeGastosEntidad(modo) {
-  return modo === "sumar" || modo === "restar";
-}
-
-function getOperacionGastos(modo) {
-  if (modo.includes("restar")) return "restar";
-  return "sumar";
 }
 // ===== Lógica de montos =====
 function calcularMontosUVA(montoBase, plazo, modo) {
   const incluyeEntidad = incluyeGastosEntidad(modo);
   const operacion = getOperacionGastos(modo);
 
-  const pctEntidad = incluyeEntidad ? getPctEntidad(plazo, operacion) : 0;
+  const pctEntidad = getPctEntidad(plazo, operacion);
 
-  if (incluyeEntidad && !pctEntidad) {
+  if (!pctEntidad) {
     throw new Error("No hay configuración de gastos para ese plazo.");
   }
 
@@ -86,10 +85,12 @@ function calcularMontosUVA(montoBase, plazo, modo) {
     const pctEntidadDec = pctEntidad / 100;
     const pctInfinitoDec = GASTO_INFINITO_RESTAR / 100;
 
-    const gastoEntidadArs = incluyeEntidad ? montoBase * pctEntidadDec : 0;
+    const gastoEntidadArs = montoBase * pctEntidadDec;
     const gastoInfinitoArs = montoBase * pctInfinitoDec;
 
-    const netoCliente = montoBase - gastoEntidadArs - gastoInfinitoArs;
+    const netoCliente = incluyeEntidad
+      ? montoBase - gastoEntidadArs - gastoInfinitoArs
+      : montoBase - gastoInfinitoArs;
 
     if (netoCliente <= 0) {
       throw new Error("El neto final debe ser mayor a cero.");
@@ -123,8 +124,11 @@ function calcularMontosUVA(montoBase, plazo, modo) {
     const montoConInfinito = montoBase * (1 + pctInfinitoDec);
     const gastoInfinitoArs = montoConInfinito - montoBase;
 
-    const gastoEntidadArs = incluyeEntidad ? montoConInfinito * pctEntidadDec : 0;
-    const montoFinanciado = montoConInfinito + gastoEntidadArs;
+    const gastoEntidadArs = montoConInfinito * pctEntidadDec;
+
+    const montoFinanciado = incluyeEntidad
+      ? montoConInfinito + gastoEntidadArs
+      : montoConInfinito;
 
     return {
       montoBase,
@@ -417,21 +421,28 @@ function renderTable(rows) {
 }
 
 function renderMontoResumen(data) {
-  const {
-    montoBase,
-    modo,
-    porcentajeEntidad,
-    porcentajeInfinito,
-    gastoEntidadArs,
-    gastoInfinitoArs,
-    montoIntermedio,
-    montoFinal,
-    netoCliente,
-  } = data;
+const {
+  montoBase,
+  modo,
+  operacion,
+  incluyeEntidad,
+  porcentajeEntidad,
+  porcentajeInfinito,
+  gastoEntidadArs,
+  gastoInfinitoArs,
+  montoIntermedio,
+  montoFinal,
+  netoCliente,
+} = data;
 
   setText("montoIngresado", fmtARS(montoBase));
   setText("porcentajeGastosAplicado", `${fmtNum(porcentajeEntidad, 2)}%`);
-  setText("gastosEntidadArs", fmtARS(gastoEntidadArs));
+  setText(
+  "gastosEntidadArs",
+  incluyeEntidad
+    ? fmtARS(gastoEntidadArs)
+    : `${fmtARS(gastoEntidadArs)} (no incluido)`
+);
 
   setText("porcentajeGastosInfinito", `${fmtNum(porcentajeInfinito, 2)}%`);
   setText("gastosInfinitoArs", fmtARS(gastoInfinitoArs));
