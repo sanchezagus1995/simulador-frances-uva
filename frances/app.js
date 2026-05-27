@@ -156,8 +156,8 @@ function calcular() {
 
   const cuotaSinIva = cuotaFijaSinIVA(M, n, i);
   const interes1 = interesPrimerMes(M, i);
-  const iva1 = ivaPrimerMes(interes1);
-  const cuota1 = cuotaSinIva + iva1;
+  const cargoExtra = M * 0.012;
+  const cuota1 = cuotaSinIva + iva1 + cargoExtra;
 
   const saldoPrev = saldoPrevio(M, i, n);
   const interesUlt = interesUltima(saldoPrev, i);
