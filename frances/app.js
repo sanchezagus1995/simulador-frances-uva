@@ -214,14 +214,12 @@ async function copiarResultado() {
   const texto = [
     "Simulación Sistema Francés",
     "",
-    `Monto: ${monto}`,
     `Plazo: ${plazo} meses`,
     `TNA ingresada: ${tna} %`,
     "",
     `TNA: ${tnaTxt}`,
     `Cuota 1: ${cuota1}`,
     `Cuota final: ${cuotaFinal}`,
-    `CFTEA: ${cfteaTxt}`,
   ].join("\n");
 
   try {
