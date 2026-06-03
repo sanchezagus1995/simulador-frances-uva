@@ -125,8 +125,7 @@ function generarTablaCuotas(M, n, i, cuotaSinIva) {
     const interes = saldo * i;
     const iva = interes * IVA;
     const capital = cuotaSinIva - interes;
-    const cargoExtra = mes === 1 ? M * 0.012 : 0;
-    const cuota = cuotaSinIva + iva + cargoExtra;
+    const cuota = cuotaSinIva + iva;
     const nuevoSaldo = Math.max(0, saldo - capital);
 
     const tr = document.createElement("tr");
@@ -158,8 +157,7 @@ function calcular() {
   const cuotaSinIva = cuotaFijaSinIVA(M, n, i);
   const interes1 = interesPrimerMes(M, i);
   const iva1 = ivaPrimerMes(interes1);
-  const cargoExtra = M * 0.012;
-  const cuota1 = cuotaSinIva + iva1 + cargoExtra;
+  const cuota1 = cuotaSinIva + iva1;
 
   const saldoPrev = saldoPrevio(M, i, n);
   const interesUlt = interesUltima(saldoPrev, i);
