@@ -1,1 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
 
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Cotizador Creditcar | Infinito Créditos</title>
+
+  <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+  <main class="container">
+
+    <a href="../index.html" class="back-link">
+      ← Volver al inicio
+    </a>
+
+    <header class="page-header">
+      <p class="page-header__label">Creditcar</p>
+
+      <h1>Cotizador de cuotas</h1>
+
+      <p class="page-header__description">
+        Ingresá el monto solicitado y seleccioná el modelo del vehículo
+        para consultar todas las cuotas disponibles.
+      </p>
+    </header>
+
+    <section class="simulator-card">
+
+      <form id="creditcarForm" class="simulator-form">
+
+        <div class="form-group">
+          <label for="montoSolicitado">
+            Monto solicitado
+          </label>
+
+          <input
+            type="number"
+            id="montoSolicitado"
+            name="montoSolicitado"
+            min="1"
+            step="1000"
+            placeholder="Ejemplo: 5000000"
+            autocomplete="off"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="categoriaVehiculo">
+            Modelo del vehículo
+          </label>
+
+          <select
+            id="categoriaVehiculo"
+            name="categoriaVehiculo"
+            required
+          >
+            <option value="2026-2021">
+              2026 - 2021
+            </option>
+
+            <option value="2020-2017">
+              2020 - 2017
+            </option>
+
+            <option value="2016-2014">
+              2016 - 2014
+            </option>
+
+            <option value="2013-2011">
+              2013 - 2011
+            </option>
+          </select>
+        </div>
+
+      </form>
+
+      <div class="plan-information">
+
+        <article class="information-card">
+          <span class="information-card__label">
+            LTV máximo
+          </span>
+
+          <strong id="ltvMaximo">
+            50%
+          </strong>
+
+          <p>
+            Porcentaje máximo financiable sobre el valor del vehículo.
+          </p>
+        </article>
+
+        <article class="information-card">
+          <span class="information-card__label">
+            Categoría seleccionada
+          </span>
+
+          <strong id="categoriaMostrada">
+            2026 - 2021
+          </strong>
+
+          <p>
+            Los plazos disponibles dependen del modelo del vehículo.
+          </p>
+        </article>
+
+      </div>
+
+    </section>
+
+    <section class="results-card">
+
+      <div class="results-header">
+
+        <div>
+          <p class="results-header__label">
+            Resultado
+          </p>
+
+          <h2>Cuotas disponibles</h2>
+        </div>
+
+        <div class="requested-amount">
+          <span>Monto solicitado</span>
+
+          <strong id="montoMostrado">
+            $0
+          </strong>
+        </div>
+
+      </div>
+
+      <div id="mensajeError" class="error-message" hidden>
+      </div>
+
+      <div class="table-wrapper">
+
+        <table class="results-table">
+
+          <thead>
+            <tr>
+              <th>Plazo</th>
+              <th>Cuota estimada</th>
+            </tr>
+          </thead>
+
+          <tbody id="tablaCuotas">
+
+            <tr>
+              <td colspan="2" class="empty-state">
+                Ingresá un monto para consultar las cuotas.
+              </td>
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+      <div class="results-actions">
+
+        <button
+          type="button"
+          id="copiarResultado"
+          class="copy-button"
+          disabled
+        >
+          Copiar resultado
+        </button>
+
+        <span
+          id="mensajeCopiado"
+          class="copy-message"
+          aria-live="polite"
+        >
+        </span>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
